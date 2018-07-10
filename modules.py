@@ -52,21 +52,31 @@ class WarpingLayer(nn.Module):
 
 
 class CostVolumeLayer(nn.Module):
-
     def __init__(self, args):
         super(CostVolumeLayer, self).__init__()
         self.args = args
         self.search_range = args.search_range
 
     def forward(self, x1, x2):
+        """
+            from [Accurate Optical Flow via Direct Cost Volume Processing]
+            Q:  import numpy as np
+                f=np.array(x1[0,:,1,1])
+                print(np.sum(f*f))
+                output:0.050772406, 0.038208075, 0.020489007.
+            x1,x2 here is not normlized?
+        :param x1: must be normlized, that is ||x1||^2 == 1
+        :param x2: same with up
+        :return:
+        """
         args = self.args
 
-        shape = list(src.size());
+        shape = list(x1.size());
         shape[1] = (self.search_range * 2 + 1) ** 2
         cv = torch.zeros(shape).to(args.device)
 
-        for i in range(-search_range, search_range + 1):
-            for j in range(-search_range, search_range + 1):
+        for i in range(-self.search_range, self.search_range + 1):
+            for j in range(-self.search_range, self.search_range + 1):
                 if i < 0:
                     slice_h, slice_h_r = slice(None, i), slice(-i, None)
                 elif i > 0:
@@ -81,9 +91,9 @@ class CostVolumeLayer(nn.Module):
                 else:
                     slice_w, slice_w_r = slice(None), slice(None)
 
-                cv[:, (search_range * 2 + 1) * i + j, slice_h, slice_w] = (
-                            x1[:, :, slice_h, slice_w] * x2[:, :, slice_h_r, slice_w_r]).sum(1)
-
+                cv[:, (self.search_range * 2 + 1) * i + j, slice_h, slice_w] = (
+                        x1[:, :, slice_h, slice_w] * x2[:, :, slice_h_r, slice_w_r]).sum(1)
+                d = 1
         return cv / shape[1]
 
 
