@@ -10,25 +10,25 @@ from correlation_package.modules.correlation import Correlation
 
 class Net(nn.Module):
 
-
     def __init__(self, args):
         super(Net, self).__init__()
         self.args = args
 
-        self.feature_pyramid_extractor = FeaturePyramidExtractor(args).to(args.device)        
-        
+        self.feature_pyramid_extractor = FeaturePyramidExtractor(args).to(args.device)
+
         self.warping_layer = WarpingLayer(args)
         if args.corr == 'CostVolumeLayer':
             self.corr = CostVolumeLayer(args)
         else:
-            self.corr = Correlation(pad_size = args.search_range, kernel_size = 1, max_displacement = args.search_range, stride1 = 1, stride2 = 1, corr_multiply = 1).to(args.device)
-        
+            self.corr = Correlation(pad_size=args.search_range, kernel_size=1, max_displacement=args.search_range,
+                                    stride1=1, stride2=1, corr_multiply=1).to(args.device)
+
         self.flow_estimators = []
         for l, ch in enumerate(args.lv_chs[::-1]):
-            layer = OpticalFlowEstimator(args, ch + (args.search_range*2+1)**2 + 2).to(args.device)
+            layer = OpticalFlowEstimator(args, ch + (args.search_range * 2 + 1) ** 2 + 2).to(args.device)
             self.add_module(f'FlowEstimator(Lv{l})', layer)
             self.flow_estimators.append(layer)
-        
+
         self.context_networks = []
         for l, ch in enumerate(args.lv_chs[::-1]):
             layer = ContextNetwork(args, ch + 2).to(args.device)
@@ -49,16 +49,17 @@ class Net(nn.Module):
         args = self.args
 
         if args.input_norm:
-            rgb_mean = x.contiguous().view(x.size()[:2]+(-1,)).mean(dim=-1).view(x.size()[:2] + (1,1,1,))
+            rgb_mean = x.contiguous().view(x.size()[:2] + (-1,)).mean(dim=-1).view(x.size()[:2] + (1, 1, 1,))
             x = (x - rgb_mean) / args.rgb_max
-        
-        x1_raw = x[:,:,0,:,:].contiguous()
-        x2_raw = x[:,:,1,:,:].contiguous()
+
+        x1_raw = x[:, :, 0, :, :].contiguous()
+        x2_raw = x[:, :, 1, :, :].contiguous()
 
         # on the bottom level are original images
-        x1_pyramid = self.feature_pyramid_extractor(x1_raw) + [x1_raw]
-        x2_pyramid = self.feature_pyramid_extractor(x2_raw) + [x2_raw]
-
+        p1 = self.feature_pyramid_extractor(x1_raw)
+        p2 = self.feature_pyramid_extractor(x2_raw)
+        x1_pyramid = p1 + [x1_raw]
+        x2_pyramid = p2 + [x2_raw]
 
         # outputs
         flows = []
@@ -72,13 +73,14 @@ class Net(nn.Module):
         for l, (x1, x2) in enumerate(zip(x1_pyramid, x2_pyramid)):
             # upsample flow and scale the displacement
             if l == 0:
-                shape = list(x1.size()); shape[1] = 2
+                shape = list(x1.size());
+                shape[1] = 2
                 flow = torch.zeros(shape).to(args.device)
             else:
-                flow = F.upsample(flow, scale_factor = 2, mode = 'bilinear') * 2
-            
+                flow = F.upsample(flow, scale_factor=2, mode='bilinear') * 2
+
             x2_warp = self.warping_layer(x2, flow)
-            
+
             # correlation
             corr = self.corr(x1, x2_warp)
             if args.corr_activation: F.leaky_relu_(corr)
@@ -86,17 +88,16 @@ class Net(nn.Module):
             # concat and estimate flow
             # ATTENTION: `+ flow` makes flow estimator learn to estimate residual flow
             if args.residual:
-                flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim = 1)) + flow
+                flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim=1)) + flow
             else:
-                flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim = 1))
+                flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim=1))
 
-            
-            flow_fine = self.context_networks[l](torch.cat([x1, flow], dim = 1))
+            flow_fine = self.context_networks[l](torch.cat([x1, flow], dim=1))
             flow = flow_coarse + flow_fine
 
-
             if l == args.output_level:
-                flow = F.upsample(flow, scale_factor = 2 ** (args.num_levels - args.output_level - 1), mode = 'bilinear') * 2 ** (args.num_levels - args.output_level - 1)
+                flow = F.upsample(flow, scale_factor=2 ** (args.num_levels - args.output_level - 1),
+                                  mode='bilinear') * 2 ** (args.num_levels - args.output_level - 1)
                 flows.append(flow)
                 summaries['x2_warps'].append(x2_warp.data)
                 break
