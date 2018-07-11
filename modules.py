@@ -93,7 +93,6 @@ class CostVolumeLayer(nn.Module):
 
                 cv[:, (self.search_range * 2 + 1) * i + j, slice_h, slice_w] = (
                         x1[:, :, slice_h, slice_w] * x2[:, :, slice_h_r, slice_w_r]).sum(1)
-                d = 1
         return cv / shape[1]
 
 

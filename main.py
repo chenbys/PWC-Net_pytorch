@@ -47,7 +47,7 @@ def main():
     parser.add_argument('--device', type=str, default='cuda')
 
     # dataset
-    parser.add_argument('--num_workers', default=8, type=int, help='num of workers')
+    parser.add_argument('--num_workers', default=1, type=int, help='num of workers')
 
     # normalization args
     parser.add_argument('--input_norm', action='store_true')
@@ -101,9 +101,9 @@ def main():
 
     # summary & log args
     train_parser.add_argument('--log_dir', default='train_log/' + datetime.now().strftime('%Y%m%d-%H%M%S'))
-    train_parser.add_argument('--summary_interval', type=int, default=100)
-    train_parser.add_argument('--log_interval', type=int, default=100)
-    train_parser.add_argument('--checkpoint_interval', type=int, default=100)
+    train_parser.add_argument('--summary_interval', type=int, default=50)
+    train_parser.add_argument('--log_interval', type=int, default=50)
+    train_parser.add_argument('--checkpoint_interval', type=int, default=1000)
     train_parser.add_argument('--gif_input', type=str, default=None)
     train_parser.add_argument('--gif_output', type=str, default='gif')
     train_parser.add_argument('--gif_interval', type=int, default=100)
@@ -292,7 +292,7 @@ def train(args):
 
             # flow_vis = [vis_flow(i.squeeze()) for flow in flows for i in np.split(np.array(flow.data).transpose(0,2,3,1), B, axis = 0)][:min(B, args.max_output)]
             # for layer_idx, flow in enumerate(flows):
-            #     flow_vis = 
+            #     flow_vis =
             #     # flow_gt_vis = [vis_flow(i.squeeze()) for i in np.split(np.array(flow_gt_pyramid[layer_idx].data).transpose(0,2,3,1), B, axis = 0)][:min(B, args.max_output)]
             #     logger.image_summary(f'flow-lv{layer_idx}', flow_vis, step)
 

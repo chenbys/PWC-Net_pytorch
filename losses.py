@@ -2,24 +2,31 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def L1loss(x, y): return (x - y).abs().mean()
-def L2loss(x, y): return torch.norm(x - y, p = 2, dim = 1).mean()
+
+
+def L2loss(x, y): return torch.norm(x - y, p=2, dim=1).mean()
+
 
 def training_loss(args, flow_pyramid, flow_gt_pyramid):
-    return sum(w * L2loss(flow, gt) for w, flow, gt in zip(args.weights, flow_pyramid, flow_gt_pyramid))
-    
+    return sum(w * L2loss(flow, gt)
+               for w, flow, gt in zip(args.weights, flow_pyramid, flow_gt_pyramid))
+
+
 def robust_training_loss(args, flow_pyramid, flow_gt_pyramid):
-    return sum((w * L1loss(flow, gt) + args.epsilon) ** args.q for w, flow, gt in zip(args.weights, flow_pyramid, flow_gt_pyramid))
-    
+    return sum((w * L1loss(flow, gt) + args.epsilon) ** args.q for w, flow, gt in
+               zip(args.weights, flow_pyramid, flow_gt_pyramid))
 
 
 def EPE(input_flow, target_flow):
-    return torch.norm(target_flow-input_flow,p=2,dim=1).mean()
+    return torch.norm(target_flow - input_flow, p=2, dim=1).mean()
 
 
 class L1(nn.Module):
     def __init__(self):
         super(L1, self).__init__()
+
     def forward(self, output, target):
         lossvalue = torch.abs(output - target).mean()
         return lossvalue
@@ -28,8 +35,9 @@ class L1(nn.Module):
 class L2(nn.Module):
     def __init__(self):
         super(L2, self).__init__()
+
     def forward(self, output, target):
-        lossvalue = torch.norm(output-target,p=2,dim=1).mean()
+        lossvalue = torch.norm(output - target, p=2, dim=1).mean()
         return lossvalue
 
 
@@ -60,28 +68,33 @@ class L2Loss(nn.Module):
 
 
 class MultiScale(nn.Module):
-    def __init__(self, args, startScale = 5, numScales = 6, l_weight= 0.32, norm= 'L1'):
-        super(MultiScale,self).__init__()
+    def __init__(self, args, startScale=5, numScales=6, l_weight=0.32, norm='L1'):
+        super(MultiScale, self).__init__()
 
         self.startScale = startScale
         self.numScales = numScales
-        self.loss_weights = torch.FloatTensor([(l_weight / 2 ** scale) for scale in range(self.numScales)]).to(args.device)
+        self.loss_weights = torch.FloatTensor([(l_weight / 2 ** scale) for scale in range(self.numScales)]).to(
+            args.device)
         self.args = args
         self.l_type = norm
         self.div_flow = 0.05
-        assert(len(self.loss_weights) == self.numScales)
+        assert (len(self.loss_weights) == self.numScales)
 
-        if self.l_type == 'L1': self.loss = L1()
-        else: self.loss = L2()
+        if self.l_type == 'L1':
+            self.loss = L1()
+        else:
+            self.loss = L2()
 
-        self.multiScales = [nn.AvgPool2d(2**l, 2**l) for l in range(args.num_levels)][::-1][:args.output_level]
-        self.loss_labels = ['MultiScale-'+self.l_type, 'EPE'],
+        self.multiScales = [nn.AvgPool2d(2 ** l, 2 ** l)
+                            for l in range(args.num_levels)][::-1][:args.output_level]
+        self.loss_labels = ['MultiScale-' + self.l_type, 'EPE'],
 
     def forward(self, outputs, target):
         args = self.args
         # if flow is normalized, every output is multiplied by its size
         # correspondingly, groundtruth should be scaled at each level
-        targets = [avg_pool(target) / 2 ** (args.num_levels - l - 1) for l, avg_pool in enumerate(self.multiScales)] + [target]
+        targets = [avg_pool(target) / 2 ** (args.num_levels - l - 1)
+                   for l, avg_pool in enumerate(self.multiScales)] + [target]
         loss, epe = 0, 0
         loss_levels, epe_levels = [], []
         for w, o, t in zip(args.weights, outputs, targets):
@@ -93,4 +106,3 @@ class MultiScale(nn.Module):
             loss_levels.append(self.loss(o, t))
             epe_levels.append(EPE(o, t))
         return [loss, epe, loss_levels, epe_levels]
-
