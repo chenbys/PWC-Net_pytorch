@@ -36,7 +36,7 @@ class WarpingLayer(nn.Module):
         # we still output unnormalized flow for the convenience of comparing EPEs with FlowNet2 and original code
         # so here we need to denormalize the flow
 
-        # F.grid_sample接受的参数是（被采样图，normalized采样点）
+        # F.grid_sample接受的参数是（被采样图，normalized采样点 in [-1,1]）
         # 所以这里先normalize flow, return x_warp = x2_norm + flow_norm\
 
         # 奇怪的是：原文说的是，把I2朝着I1进行warp.却是x2+flow=x1?
@@ -141,7 +141,6 @@ class OpticalFlowEstimator(nn.Module):
 
 
 class ContextNetwork(nn.Module):
-
     def __init__(self, args, ch_in):
         super(ContextNetwork, self).__init__()
         self.args = args

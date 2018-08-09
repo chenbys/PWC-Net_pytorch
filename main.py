@@ -15,7 +15,6 @@ from model import Net
 from losses import L1loss, L2loss, training_loss, robust_training_loss, MultiScale, EPE
 from dataset import (FlyingChairs, FlyingThings, Sintel, SintelFinal, SintelClean, KITTI)
 
-import tensorflow as tf
 from summary import summary as summary_
 from logger import Logger
 from pathlib import Path
@@ -309,8 +308,8 @@ def train(args):
             print(
                 f'Step [{step}/{args.total_step}], Loss: {total_loss / step:.4f}, EPE: {total_epe / step:.4f}, Forward: {forward_time/step*1000} ms, Backward: {backward_time/step*1000} ms')
 
-        if step % args.gif_interval == 0:
-            ...
+        # if step % args.gif_interval == 0:
+        #     ...
 
 
 def pred(args):
@@ -331,8 +330,8 @@ def pred(args):
             print(self.th, self.tw, self.h, self.w)
 
         def __call__(self, img):
-            return img[(self.h - self.th) // 2:(self.h + self.th) // 2, (self.w - self.tw) // 2:(self.w + self.tw) // 2,
-                   :]
+            return img[(self.h - self.th) // 2:(self.h + self.th) // 2,
+                   (self.w - self.tw) // 2:(self.w + self.tw) // 2, :]
 
     x1_raw = np.array(x1_raw)
     x2_raw = np.array(x2_raw)

@@ -91,7 +91,8 @@ class Net(nn.Module):
                 flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim=1)) + flow
             else:
                 flow_coarse = self.flow_estimators[l](torch.cat([x1, corr, flow], dim=1))
-
+            # Q: context net 的输入是x1和flow？也就是 feature pramid x1, init flow.
+            # 而原文中 context net takes the etismated flow and features of the second laster layer from the optical flow etismator.
             flow_fine = self.context_networks[l](torch.cat([x1, flow], dim=1))
             flow = flow_coarse + flow_fine
 
